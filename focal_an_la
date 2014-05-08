@@ -1,0 +1,65 @@
+#!/bin/python2
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+
+import requests
+import sys
+from lxml import html
+
+
+def tail( f, window=2 ):
+    BUFSIZ = 1024
+    f.seek(0, 2)
+    bytes = f.tell()
+    size = window
+    block = -1
+    data = []
+    while size > 0 and bytes > 0:
+        if (bytes - BUFSIZ > 0):
+            # Seek back one whole BUFSIZ
+            f.seek(block*BUFSIZ, 2)
+            # read BUFFER
+            data.append(f.read(BUFSIZ))
+        else:
+            # file too small, start from begining
+            f.seek(0,0)
+            # only read what was not read
+            data.append(f.read(bytes))
+        linesFound = data[-1].count('\n')
+        size -= linesFound
+        bytes -= BUFSIZ
+        block -= 1
+    return '\n'.join(''.join(data).splitlines()[-window:])
+
+def focal():
+    """(file, string) ->  NoneType
+    updates mail signature against an online Word Of the Day Feed.
+    """
+
+    #Handle no internet error case to draw focal from log file.
+    #Try:
+    #    page = requests.get('http://www.focloir.ie/corpus/')
+    #Except:
+    #    requests.exceptions.ConnectionError
+    page = requests.get('http://www.focloir.ie/corpus/')
+    tree = html.fromstring(page.text)
+    
+    eng = tree.xpath('//div[@class="wotdEntryHdr"]/a/span[@class="hwd"]/orth/text()')[0]
+    pos = tree.xpath('//span[@class="pos"]/text()')[0]
+    gae = tree.xpath('//span[@class="trans"]/text()')[0]
+    link= tree.xpath('/html/body/div[3]/div/div[2]/div[2]/div[2]/div[2]/div/div[1]/a/@href')[0]
+    
+    sig = """
+    Irish word of the day:\n
+    {2}\n
+    {1}; {0}\n
+    \n\n {3}
+    """.format(pos,eng[0].upper()+eng[1:]," "+"\n       ".join(gae.encode('utf-8').split(',')),link)
+
+    print(sig)
+
+if __name__ == '__main__':
+    focal()
+
+sys.exit(0)
+
